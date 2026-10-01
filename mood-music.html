@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎵 오늘의 기분 노래 추천</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card2: #16213e;
+      --accent: #7c3aed;
+      --accent2: #a855f7;
+      --accent3: #06b6d4;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: rgba(124, 58, 237, 0.25);
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px 16px 60px;
+      overflow-x: hidden;
+    }
+
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,58,237,0.18), transparent 70%);
+      top: -200px; left: -200px;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(6,182,212,0.12), transparent 70%);
+      bottom: -150px; right: -150px;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    /* ─── header ─── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .header .logo {
+      font-size: 2.8rem;
+      animation: float 3s ease-in-out infinite;
+      display: inline-block;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+    .header h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a855f7, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-top: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 6px;
+    }
+
+    /* ─── progress ─── */
+    .progress-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+      justify-content: center;
+    }
+    .prog-dot {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .prog-dot.done   { background: #a855f7; color: white; }
+    .prog-dot.active { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white;
+                       box-shadow: 0 0 14px rgba(168,85,247,0.55); }
+    .prog-dot.todo   { background: #16213e; color: var(--muted);
+                       border: 1px solid rgba(124,58,237,0.25); }
+    .prog-line { width: 44px; height: 2px; background: rgba(124,58,237,0.2); border-radius: 2px; }
+    .prog-line.done { background: #a855f7; }
+
+    /* ─── step card ─── */
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    .step-card.hidden { display: none; }
+    .step-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #a855f7;
+      margin-bottom: 8px;
+    }
+    .step-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .step-sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    /* ─── mood grid ─── */
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap: 12px;
+    }
+    .mood-btn {
+      background: var(--card2);
+      border: 2px solid transparent;
+      border-radius: 16px;
+      padding: 18px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.22s;
+    }
+    .mood-btn:hover {
+      border-color: #a855f7;
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(168,85,247,0.25);
+    }
+    .mood-btn.selected {
+      border-color: #a855f7;
+      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(168,85,247,0.12));
+      box-shadow: 0 0 0 3px rgba(168,85,247,0.18);
+    }
+    .mood-btn .emoji { font-size: 1.9rem; display: block; margin-bottom: 7px; }
+    .mood-btn .mood-name { font-size: 0.87rem; font-weight: 700; color: var(--text); }
+    .mood-btn .mood-desc { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+    /* ─── genre grid ─── */
+    .genre-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .genre-btn {
+      background: var(--card2);
+      border: 2px solid transparent;
+      border-radius: 30px;
+      padding: 9px 18px;
+      cursor: pointer;
+      font-size: 0.87rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .genre-btn:hover { border-color: #06b6d4; color: var(--text); }
+    .genre-btn.selected {
+      border-color: #06b6d4;
+      background: rgba(6,182,212,0.12);
+      color: #06b6d4;
+      box-shadow: 0 0 0 3px rgba(6,182,212,0.12);
+    }
+
+    /* ─── buttons ─── */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: white; border: none; border-radius: 12px;
+      padding: 13px 26px; font-size: 0.97rem; font-weight: 700;
+      cursor: pointer; margin-top: 22px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.55); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--muted);
+      border: 1px solid rgba(124,58,237,0.25);
+      border-radius: 12px; padding: 11px 20px;
+      font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; margin-top: 12px; margin-left: 10px;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: #a855f7; color: var(--text); }
+
+    /* ─── result ─── */
+    #result-section { display: none; }
+
+    .result-header { text-align: center; margin-bottom: 26px; }
+    .mood-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.12));
+      border: 1px solid rgba(124,58,237,0.25);
+      border-radius: 30px; padding: 7px 16px;
+      font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;
+    }
+    .result-header h2 { font-size: 1.4rem; font-weight: 800; }
+    .result-header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+    /* ─── song cards ─── */
+    .song-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .song-card {
+      background: var(--card2);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+      transition: all 0.2s;
+      animation: slideUp 0.4s ease forwards;
+      opacity: 0;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .song-card:hover {
+      border-color: #a855f7;
+      transform: translateX(4px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .song-num {
+      font-size: 1rem; font-weight: 800; color: #a855f7;
+      min-width: 24px; text-align: center;
+    }
+    .song-cover {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .song-info { flex: 1; min-width: 0; }
+    .song-title {
+      font-size: 0.95rem; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .song-artist { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+    .song-genre-tag {
+      font-size: 0.7rem; font-weight: 700; padding: 3px 8px;
+      border-radius: 20px; flex-shrink: 0;
+    }
+    .youtube-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #ff0000; color: white; border: none;
+      border-radius: 8px; padding: 6px 11px;
+      font-size: 0.77rem; font-weight: 700; cursor: pointer;
+      text-decoration: none; transition: all 0.2s; flex-shrink: 0;
+    }
+    .youtube-btn:hover { background: #cc0000; transform: scale(1.05); }
+
+    .shuffle-notice {
+      text-align: center; color: var(--muted); font-size: 0.82rem;
+      margin-top: 18px; padding: 12px;
+      background: rgba(255,255,255,0.03); border-radius: 10px;
+    }
+
+    .footer {
+      text-align: center; margin-top: 36px;
+      color: var(--muted); font-size: 0.8rem;
+    }
+
+    @media (max-width: 480px) {
+      .mood-grid { grid-template-columns: repeat(3, 1fr); }
+      .step-card { padding: 20px 14px; }
+      .header h1 { font-size: 1.45rem; }
+      .song-genre-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="logo">🎵</div>
+    <h1>오늘의 기분 노래 추천</h1>
+    <p>기분을 알려주면 딱 맞는 노래를 골라드릴게요 — 고민 끝!</p>
+  </div>
+
+  <div class="progress-bar">
+    <div class="prog-dot active" id="dot1">1</div>
+    <div class="prog-line" id="line1"></div>
+    <div class="prog-dot todo" id="dot2">2</div>
+    <div class="prog-line" id="line2"></div>
+    <div class="prog-dot todo" id="dot3">3</div>
+  </div>
+
+  <!-- Step 1: 기분 선택 -->
+  <div class="step-card" id="step1">
+    <div class="step-label">Step 1 · 기분 선택</div>
+    <div class="step-title">오늘 하루 기분이 어때요?</div>
+    <div class="step-sub">지금 이 순간 가장 가까운 감정을 골라주세요</div>
+    <div class="mood-grid" id="mood-grid"></div>
+    <div>
+      <button class="btn-primary" id="btn-mood-next" disabled onclick="goToStep2()">
+        다음 → 장르 선택
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: 장르 선택 -->
+  <div class="step-card hidden" id="step2">
+    <div class="step-label">Step 2 · 장르 선택</div>
+    <div class="step-title">어떤 장르가 좋아요? <span style="color:var(--muted);font-weight:400;font-size:0.95rem;">(복수 선택 가능)</span></div>
+    <div class="step-sub">선택하지 않으면 모든 장르에서 추천해드려요</div>
+    <div class="genre-grid" id="genre-grid"></div>
+    <div>
+      <button class="btn-primary" onclick="goToStep3()">🎲 노래 추천받기!</button>
+      <button class="btn-secondary" onclick="goToStep1()">← 기분 다시 선택</button>
+    </div>
+  </div>
+
+  <!-- Step 3: 결과 -->
+  <div id="result-section">
+    <div class="step-card">
+      <div class="result-header">
+        <div class="mood-badge" id="result-badge"></div>
+        <h2 id="result-title"></h2>
+        <p id="result-sub"></p>
+      </div>
+      <div class="song-list" id="song-list"></div>
+      <div class="shuffle-notice">
+        💡 매번 다른 조합으로 추천돼요. 마음에 안 들면 다시 뽑아보세요!
+      </div>
+      <div style="margin-top:8px;">
+        <button class="btn-primary" onclick="shuffleAgain()">🔀 다시 추천받기</button>
+        <button class="btn-secondary" onclick="restart()">← 처음부터</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    노래를 고르느라 시간 낭비하지 마세요 🎧<br>
+    ▶ YouTube 버튼을 클릭하면 바로 검색돼요
+  </div>
+</div>
+
+<script>
+const MOODS = [
+  { id:'happy',     emoji:'😊', name:'행복해요',  desc:'신나고 기분 좋은 날' },
+  { id:'sad',       emoji:'😢', name:'슬퍼요',    desc:'마음이 가라앉은 날' },
+  { id:'energetic', emoji:'⚡', name:'에너제틱',  desc:'활력 넘치는 날' },
+  { id:'calm',      emoji:'😌', name:'차분해요',  desc:'조용하고 편안한 날' },
+  { id:'romantic',  emoji:'💕', name:'설레요',    desc:'두근두근 감성적인 날' },
+  { id:'angry',     emoji:'😤', name:'화나요',    desc:'스트레스 받는 날' },
+  { id:'lonely',    emoji:'🌙', name:'외로워요',  desc:'혼자인 느낌이 드는 날' },
+  { id:'tired',     emoji:'😴', name:'지쳤어요',  desc:'피곤하고 지친 날' },
+  { id:'excited',   emoji:'🥳', name:'신나요',    desc:'특별한 기대가 있는 날' },
+  { id:'nostalgic', emoji:'🌅', name:'그리워요',  desc:'옛 추억이 떠오르는 날' },
+  { id:'focused',   emoji:'🎯', name:'집중해요',  desc:'공부·작업이 필요한 날' },
+  { id:'chill',     emoji:'🛋️', name:'여유로워',  desc:'아무것도 안 하고 싶은 날' },
+];
+
+const GENRES = ['K-Pop','POP','R&B','Hip-Hop','발라드','EDM','Jazz','인디','록','OST','클래식','Lo-Fi'];
+
+const GENRE_EMOJI = {
+  'K-Pop':'🎤','POP':'🌟','R&B':'🎷','Hip-Hop':'🎤',
+  '발라드':'💙','EDM':'🎧','Jazz':'🎺','인디':'🎸',
+  '록':'🎸','OST':'🎬','클래식':'🎻','Lo-Fi':'☁️'
+};
+
+const GENRE_COLORS = {
+  'K-Pop':  ['rgba(236,72,153,0.15)','#ec4899'],
+  'POP':    ['rgba(245,158,11,0.15)','#f59e0b'],
+  'R&B':    ['rgba(139,92,246,0.15)','#8b5cf6'],
+  'Hip-Hop':['rgba(239,68,68,0.15)', '#ef4444'],
+  '발라드':  ['rgba(59,130,246,0.15)','#3b82f6'],
+  'EDM':    ['rgba(6,182,212,0.15)', '#06b6d4'],
+  'Jazz':   ['rgba(217,119,6,0.15)','#d97706'],
+  '인디':    ['rgba(16,185,129,0.15)','#10b981'],
+  '록':     ['rgba(249,115,22,0.15)','#f97316'],
+  'OST':    ['rgba(236,72,153,0.15)','#ec4899'],
+  '클래식':  ['rgba(99,102,241,0.15)','#6366f1'],
+  'Lo-Fi':  ['rgba(20,184,166,0.15)','#14b8a6'],
+};
+
+const SONGS = {
+  happy:[
+    {title:'Dynamite',artist:'BTS',genre:'K-Pop',emoji:'🌟',q:'BTS Dynamite'},
+    {title:'Happy',artist:'Pharrell Williams',genre:'POP',emoji:'☀️',q:'Pharrell Williams Happy'},
+    {title:'Good as Hell',artist:'Lizzo',genre:'POP',emoji:'🎉',q:'Lizzo Good as Hell'},
+    {title:'Butter',artist:'BTS',genre:'K-Pop',emoji:'🧈',q:'BTS Butter'},
+    {title:"Can't Stop the Feeling",artist:'Justin Timberlake',genre:'POP',emoji:'🕺',q:"Justin Timberlake Can't Stop the Feeling"},
+    {title:"Rollin'",artist:'Brave Girls',genre:'K-Pop',emoji:'🌈',q:'Brave Girls 롤린'},
+    {title:'Uptown Funk',artist:'Mark Ronson ft. Bruno Mars',genre:'POP',emoji:'🎺',q:'Uptown Funk Bruno Mars'},
+    {title:'Fancy',artist:'TWICE',genre:'K-Pop',emoji:'✨',q:'TWICE Fancy'},
+    {title:'Levitating',artist:'Dua Lipa',genre:'POP',emoji:'🚀',q:'Dua Lipa Levitating'},
+    {title:'봄봄봄',artist:'로이킴',genre:'인디',emoji:'🌸',q:'로이킴 봄봄봄'},
+    {title:'PINK VENOM',artist:'BLACKPINK',genre:'K-Pop',emoji:'🌹',q:'BLACKPINK PINK VENOM'},
+    {title:'Love Story',artist:'Taylor Swift',genre:'POP',emoji:'💛',q:'Taylor Swift Love Story'},
+  ],
+  sad:[
+    {title:'Someone Like You',artist:'Adele',genre:'발라드',emoji:'💔',q:'Adele Someone Like You'},
+    {title:'눈의 꽃',artist:'박효신',genre:'발라드',emoji:'❄️',q:'박효신 눈의 꽃'},
+    {title:'Let Her Go',artist:'Passenger',genre:'인디',emoji:'🍂',q:'Passenger Let Her Go'},
+    {title:'사건의 지평선',artist:'윤하',genre:'발라드',emoji:'🌌',q:'윤하 사건의 지평선'},
+    {title:'Fix You',artist:'Coldplay',genre:'록',emoji:'🕯️',q:'Coldplay Fix You'},
+    {title:'너에게 난 나에게 넌',artist:'폴킴',genre:'발라드',emoji:'🌙',q:'폴킴 너에게 난 나에게 넌'},
+    {title:'The Night We Met',artist:'Lord Huron',genre:'인디',emoji:'🌃',q:'Lord Huron The Night We Met'},
+    {title:'이별길',artist:'아이유',genre:'발라드',emoji:'🌧️',q:'아이유 이별길'},
+    {title:'All of Me',artist:'John Legend',genre:'R&B',emoji:'🎹',q:'John Legend All of Me'},
+    {title:'봄날',artist:'BTS',genre:'K-Pop',emoji:'🌸',q:'BTS 봄날'},
+    {title:'Skinny Love',artist:'Bon Iver',genre:'인디',emoji:'🌲',q:'Bon Iver Skinny Love'},
+    {title:'내 손을 잡아',artist:'테이',genre:'발라드',emoji:'🤝',q:'테이 내 손을 잡아'},
+  ],
+  energetic:[
+    {title:'POWER',artist:'EXO',genre:'K-Pop',emoji:'⚡',q:'EXO POWER'},
+    {title:'Eye of the Tiger',artist:'Survivor',genre:'록',emoji:'🐯',q:'Survivor Eye of the Tiger'},
+    {title:'Thunderstruck',artist:'AC/DC',genre:'록',emoji:'⚡',q:'ACDC Thunderstruck'},
+    {title:"Don't Stop Me Now",artist:'Queen',genre:'록',emoji:'🚀',q:"Queen Don't Stop Me Now"},
+    {title:'Mic Drop',artist:'BTS',genre:'Hip-Hop',emoji:'🎤',q:'BTS Mic Drop'},
+    {title:'Pump It',artist:'Black Eyed Peas',genre:'Hip-Hop',emoji:'🔊',q:'Black Eyed Peas Pump It'},
+    {title:'Higher Power',artist:'Coldplay',genre:'POP',emoji:'🌠',q:'Coldplay Higher Power'},
+    {title:'WANNABE',artist:'ITZY',genre:'K-Pop',emoji:'💪',q:'ITZY WANNABE'},
+    {title:'Till I Collapse',artist:'Eminem',genre:'Hip-Hop',emoji:'🥊',q:'Eminem Till I Collapse'},
+    {title:'ON',artist:'BTS',genre:'K-Pop',emoji:'🔥',q:'BTS ON'},
+    {title:'Telephone',artist:'Lady Gaga',genre:'EDM',emoji:'📞',q:'Lady Gaga Telephone'},
+    {title:'Bounce',artist:'Tiger JK',genre:'Hip-Hop',emoji:'🏀',q:'Tiger JK Bounce'},
+  ],
+  calm:[
+    {title:'Raindrop Flower',artist:'아이유',genre:'인디',emoji:'🌿',q:'아이유 Raindrop Flower'},
+    {title:'Hotel California',artist:'Eagles',genre:'록',emoji:'🌅',q:'Eagles Hotel California'},
+    {title:'River Flows in You',artist:'Yiruma',genre:'클래식',emoji:'🌊',q:'Yiruma River Flows in You'},
+    {title:'Gymnopedie No.1',artist:'Erik Satie',genre:'클래식',emoji:'🎹',q:'Satie Gymnopedie'},
+    {title:'Clair de Lune',artist:'Debussy',genre:'클래식',emoji:'🌙',q:'Debussy Clair de Lune'},
+    {title:'도레미파솔',artist:'폴킴',genre:'발라드',emoji:'🎵',q:'폴킴 도레미파솔'},
+    {title:'Fly Me to the Moon',artist:'Frank Sinatra',genre:'Jazz',emoji:'🌙',q:'Frank Sinatra Fly Me to the Moon'},
+    {title:'Sunset Lover',artist:'Petit Biscuit',genre:'인디',emoji:'🌄',q:'Petit Biscuit Sunset Lover'},
+    {title:'부산에 가면',artist:'조용필',genre:'발라드',emoji:'🌊',q:'조용필 부산에 가면'},
+    {title:'Weightless',artist:'Marconi Union',genre:'클래식',emoji:'🧘',q:'Marconi Union Weightless'},
+    {title:'여기 저기',artist:'로꼬',genre:'R&B',emoji:'☁️',q:'로꼬 여기저기'},
+    {title:'Lo-Fi Afternoon',artist:'Lofi Girl',genre:'Lo-Fi',emoji:'🍃',q:'lofi chill afternoon'},
+  ],
+  romantic:[
+    {title:'Perfect',artist:'Ed Sheeran',genre:'POP',emoji:'💕',q:'Ed Sheeran Perfect'},
+    {title:'A Thousand Years',artist:'Christina Perri',genre:'POP',emoji:'🌹',q:'Christina Perri A Thousand Years'},
+    {title:'My Love',artist:'폴킴',genre:'발라드',emoji:'❤️',q:'폴킴 My Love'},
+    {title:'Lucky',artist:'Jason Mraz',genre:'POP',emoji:'🍀',q:'Jason Mraz Lucky'},
+    {title:'너의 의미',artist:'아이유 & 김창완',genre:'발라드',emoji:'💌',q:'아이유 김창완 너의 의미'},
+    {title:"Can't Help Falling in Love",artist:'Elvis Presley',genre:'POP',emoji:'🎸',q:"Elvis Presley Can't Help Falling in Love"},
+    {title:'이 사람이다 싶었어',artist:'정준일',genre:'발라드',emoji:'💛',q:'정준일 이 사람이다 싶었어'},
+    {title:'At Last',artist:'Etta James',genre:'Jazz',emoji:'🎺',q:'Etta James At Last'},
+    {title:'설레임',artist:'CHEN',genre:'K-Pop',emoji:'🌸',q:'첸 설레임'},
+    {title:'만약에',artist:'버스커 버스커',genre:'인디',emoji:'🎸',q:'버스커버스커 만약에'},
+    {title:'Love on Top',artist:'Beyoncé',genre:'R&B',emoji:'👑',q:'Beyoncé Love on Top'},
+    {title:'Thinking Out Loud',artist:'Ed Sheeran',genre:'POP',emoji:'💭',q:'Ed Sheeran Thinking Out Loud'},
+  ],
+  angry:[
+    {title:'MIROH',artist:'Stray Kids',genre:'K-Pop',emoji:'🦁',q:'Stray Kids MIROH'},
+    {title:'Lose Yourself',artist:'Eminem',genre:'Hip-Hop',emoji:'🎤',q:'Eminem Lose Yourself'},
+    {title:'Killing in the Name',artist:'Rage Against the Machine',genre:'록',emoji:'✊',q:'Rage Against the Machine Killing in the Name'},
+    {title:'Kill This Love',artist:'BLACKPINK',genre:'K-Pop',emoji:'🖤',q:'BLACKPINK Kill This Love'},
+    {title:'Breaking the Habit',artist:'Linkin Park',genre:'록',emoji:'💢',q:'Linkin Park Breaking the Habit'},
+    {title:'파이팅 해야지',artist:'다비치',genre:'발라드',emoji:'✊',q:'다비치 파이팅해야지'},
+    {title:'Not Afraid',artist:'Eminem',genre:'Hip-Hop',emoji:'🥊',q:'Eminem Not Afraid'},
+    {title:'Stronger',artist:'Kanye West',genre:'Hip-Hop',emoji:'⚡',q:'Kanye West Stronger'},
+    {title:'Scream & Shout',artist:'will.i.am & Britney',genre:'EDM',emoji:'📢',q:'will.i.am Britney Scream Shout'},
+    {title:'LOCO',artist:'EXID',genre:'K-Pop',emoji:'🔥',q:'EXID LOCO'},
+    {title:'Enter Sandman',artist:'Metallica',genre:'록',emoji:'🤘',q:'Metallica Enter Sandman'},
+    {title:'Black Hole Sun',artist:'Soundgarden',genre:'록',emoji:'🌑',q:'Soundgarden Black Hole Sun'},
+  ],
+  lonely:[
+    {title:'Lonely',artist:'2NE1',genre:'K-Pop',emoji:'🌙',q:'2NE1 Lonely'},
+    {title:'The Sound of Silence',artist:'Simon & Garfunkel',genre:'인디',emoji:'🌌',q:'Simon Garfunkel Sound of Silence'},
+    {title:'혼자라도',artist:'에픽하이',genre:'Hip-Hop',emoji:'🖤',q:'에픽하이 혼자라도'},
+    {title:'Mad World',artist:'Gary Jules',genre:'인디',emoji:'🌧️',q:'Gary Jules Mad World'},
+    {title:'혼자서도 잘해요',artist:'화사',genre:'K-Pop',emoji:'😶',q:'화사 혼자서도 잘해요'},
+    {title:'Creep',artist:'Radiohead',genre:'록',emoji:'🌙',q:'Radiohead Creep'},
+    {title:'외롭지 않아',artist:'거미',genre:'발라드',emoji:'🌟',q:'거미 외롭지 않아'},
+    {title:'Mr. Lonely',artist:'Bobby Vinton',genre:'POP',emoji:'💙',q:'Bobby Vinton Mr Lonely'},
+    {title:'Iris',artist:'Goo Goo Dolls',genre:'록',emoji:'🌹',q:'Goo Goo Dolls Iris'},
+    {title:'Night Changes',artist:'One Direction',genre:'POP',emoji:'🌃',q:'One Direction Night Changes'},
+    {title:'혼자야',artist:'B1A4',genre:'K-Pop',emoji:'😔',q:'B1A4 혼자야'},
+    {title:'Lo-Fi Study Beats',artist:'ChilledCow',genre:'Lo-Fi',emoji:'☁️',q:'lofi beats to study relax'},
+  ],
+  tired:[
+    {title:'쉬어요',artist:'아이유',genre:'발라드',emoji:'💤',q:'아이유 쉬어요'},
+    {title:'Let It Be',artist:'The Beatles',genre:'록',emoji:'🕊️',q:'Beatles Let It Be'},
+    {title:'위로',artist:'에픽하이',genre:'Hip-Hop',emoji:'🤝',q:'에픽하이 위로'},
+    {title:'Breathe',artist:'이하이',genre:'발라드',emoji:'🌬️',q:'이하이 Breathe'},
+    {title:'Somewhere Only We Know',artist:'Keane',genre:'인디',emoji:'🌿',q:'Keane Somewhere Only We Know'},
+    {title:'또 하루',artist:'MAKTUB',genre:'R&B',emoji:'🌙',q:'maktub 또 하루'},
+    {title:'Easy',artist:'Mac Ayres',genre:'R&B',emoji:'☁️',q:'Mac Ayres Easy'},
+    {title:'노래',artist:'이수현',genre:'발라드',emoji:'🎵',q:'이수현 노래'},
+    {title:'Slow Down',artist:'India Arie',genre:'R&B',emoji:'🍃',q:'India Arie Slow Down'},
+    {title:'비와 당신',artist:'김범수',genre:'발라드',emoji:'🌧️',q:'김범수 비와 당신'},
+    {title:'Lo-Fi Chill',artist:'Lofi Girl',genre:'Lo-Fi',emoji:'😴',q:'lofi chill beats'},
+    {title:'Hallelujah',artist:'Jeff Buckley',genre:'인디',emoji:'🎸',q:'Jeff Buckley Hallelujah'},
+  ],
+  excited:[
+    {title:'FIRE',artist:'BTS',genre:'K-Pop',emoji:'🔥',q:'BTS FIRE'},
+    {title:'Shake It Off',artist:'Taylor Swift',genre:'POP',emoji:'🕺',q:'Taylor Swift Shake It Off'},
+    {title:'Party Rock Anthem',artist:'LMFAO',genre:'EDM',emoji:'🎉',q:'LMFAO Party Rock Anthem'},
+    {title:'DDU-DU DDU-DU',artist:'BLACKPINK',genre:'K-Pop',emoji:'💥',q:'BLACKPINK DDU-DU'},
+    {title:'Blinding Lights',artist:'The Weeknd',genre:'POP',emoji:'🌃',q:'The Weeknd Blinding Lights'},
+    {title:'IDOL',artist:'BTS',genre:'K-Pop',emoji:'👑',q:'BTS IDOL'},
+    {title:'Titanium',artist:'David Guetta',genre:'EDM',emoji:'⚡',q:'David Guetta Titanium'},
+    {title:'Born This Way',artist:'Lady Gaga',genre:'POP',emoji:'🦋',q:'Lady Gaga Born This Way'},
+    {title:'소원을 말해봐',artist:'소녀시대',genre:'K-Pop',emoji:'⭐',q:'소녀시대 소원을 말해봐'},
+    {title:'Adventure of a Lifetime',artist:'Coldplay',genre:'POP',emoji:'🌍',q:'Coldplay Adventure of a Lifetime'},
+    {title:'Telephone',artist:'Lady Gaga',genre:'EDM',emoji:'📞',q:'Lady Gaga Telephone'},
+    {title:'Energy',artist:'Beyoncé',genre:'R&B',emoji:'💫',q:'Beyoncé Energy'},
+  ],
+  nostalgic:[
+    {title:'너에게',artist:'들국화',genre:'록',emoji:'🌼',q:'들국화 너에게'},
+    {title:'Yesterday',artist:'The Beatles',genre:'록',emoji:'🎸',q:'Beatles Yesterday'},
+    {title:'아파트',artist:'윤수일',genre:'발라드',emoji:'🏠',q:'윤수일 아파트'},
+    {title:'Stand By Me',artist:'Ben E. King',genre:'POP',emoji:'⭐',q:'Ben E King Stand By Me'},
+    {title:'촛불 하나',artist:'변진섭',genre:'발라드',emoji:'🕯️',q:'변진섭 촛불하나'},
+    {title:'라일락',artist:'아이유',genre:'인디',emoji:'💜',q:'아이유 라일락'},
+    {title:'Summer of 69',artist:'Bryan Adams',genre:'록',emoji:'🎸',q:'Bryan Adams Summer of 69'},
+    {title:'어젯밤 이야기',artist:'아이유',genre:'발라드',emoji:'🌙',q:'아이유 어젯밤이야기'},
+    {title:'이 밤의 끝을 잡고',artist:'거미',genre:'발라드',emoji:'🌌',q:'거미 이밤의 끝을 잡고'},
+    {title:'아름다운 강산',artist:'박인수',genre:'발라드',emoji:'🏔️',q:'아름다운 강산 박인수'},
+    {title:'Bohemian Rhapsody',artist:'Queen',genre:'록',emoji:'👑',q:'Queen Bohemian Rhapsody'},
+    {title:'그때 그 사람',artist:'심수봉',genre:'발라드',emoji:'🌹',q:'심수봉 그때 그 사람'},
+  ],
+  focused:[
+    {title:'Lo-Fi Study Mix',artist:'ChilledCow',genre:'Lo-Fi',emoji:'📚',q:'lofi hip hop study'},
+    {title:'Experience',artist:'Ludovico Einaudi',genre:'클래식',emoji:'🎹',q:'Ludovico Einaudi Experience'},
+    {title:'Interstellar Main Theme',artist:'Hans Zimmer',genre:'OST',emoji:'🌌',q:'Hans Zimmer Interstellar main theme'},
+    {title:'Nuvole Bianche',artist:'Ludovico Einaudi',genre:'클래식',emoji:'☁️',q:'Ludovico Einaudi Nuvole Bianche'},
+    {title:'Deep Work Beats',artist:'Lofi Girl',genre:'Lo-Fi',emoji:'💡',q:'lofi deep work focus'},
+    {title:'Time',artist:'Hans Zimmer',genre:'OST',emoji:'⏱️',q:'Hans Zimmer Time Inception'},
+    {title:'월광 소나타',artist:'Beethoven',genre:'클래식',emoji:'🌙',q:'Beethoven Moonlight Sonata'},
+    {title:'Code Mode Beats',artist:'Chillhop',genre:'Lo-Fi',emoji:'💻',q:'chillhop coding music'},
+    {title:'Pirates of the Caribbean',artist:'Hans Zimmer',genre:'OST',emoji:'⚓',q:'Hans Zimmer Pirates Caribbean'},
+    {title:'공부 집중 BGM',artist:'Various',genre:'클래식',emoji:'📝',q:'공부 집중 bgm'},
+    {title:'Brain.fm Focus',artist:'Various',genre:'Lo-Fi',emoji:'🧠',q:'focus music study concentration'},
+    {title:'Gymnopédie No.1',artist:'Erik Satie',genre:'클래식',emoji:'🎹',q:'Satie Gymnopedie No 1'},
+  ],
+  chill:[
+    {title:'비 오는 날 플레이리스트',artist:'Various',genre:'Lo-Fi',emoji:'🌧️',q:'비 오는 날 노래'},
+    {title:'Summer Jazz',artist:'Various',genre:'Jazz',emoji:'☀️',q:'summer jazz afternoon cafe'},
+    {title:'Thinking Out Loud',artist:'Ed Sheeran',genre:'POP',emoji:'💭',q:'Ed Sheeran Thinking Out Loud'},
+    {title:'오늘도 맑음',artist:'백아',genre:'인디',emoji:'🌤️',q:'백아 오늘도 맑음'},
+    {title:'Sunday Morning',artist:'Maroon 5',genre:'POP',emoji:'🌅',q:'Maroon 5 Sunday Morning'},
+    {title:'Cafe Jazz',artist:'Various',genre:'Jazz',emoji:'☕',q:'cafe jazz background music'},
+    {title:'좋아',artist:'아이유',genre:'인디',emoji:'💛',q:'아이유 좋아'},
+    {title:'Three Little Birds',artist:'Bob Marley',genre:'POP',emoji:'🐦',q:'Bob Marley Three Little Birds'},
+    {title:'Sitting, Waiting, Wishing',artist:'Jack Johnson',genre:'인디',emoji:'🏖️',q:'Jack Johnson Sitting Waiting Wishing'},
+    {title:'마음',artist:'로꼬',genre:'R&B',emoji:'💙',q:'로꼬 마음'},
+    {title:'감사',artist:'이적',genre:'발라드',emoji:'🌿',q:'이적 감사'},
+    {title:'Banana Pancakes',artist:'Jack Johnson',genre:'인디',emoji:'🍌',q:'Jack Johnson Banana Pancakes'},
+  ],
+};
+
+const MOOD_MESSAGES = {
+  happy:     { title:'신나는 하루를 더 빛낼 노래! 🌟',          sub:'기분 좋은 오늘, 노래도 신나게!' },
+  sad:       { title:'마음을 달래줄 위로의 선율 💙',             sub:'함께 감정을 느끼고, 조금씩 나아가요' },
+  energetic: { title:'에너지 폭발! 최고의 파워 플레이리스트 ⚡', sub:'지금 이 기세, 멈추지 마세요!' },
+  calm:      { title:'고요한 순간을 채울 잔잔한 음악 🌿',        sub:'조용히 음악과 함께 흘러가세요' },
+  romantic:  { title:'두근두근 감성 가득한 플레이리스트 💕',     sub:'오늘의 설렘을 음악으로 표현해요' },
+  angry:     { title:'화를 날려버릴 강렬한 음악 🔥',             sub:'음악과 함께 감정을 털어내세요' },
+  lonely:    { title:'혼자인 밤을 함께할 음악들 🌙',             sub:'외로운 감정도 음악이 되면 괜찮아요' },
+  tired:     { title:'지친 마음을 토닥여줄 음악 😌',             sub:'오늘 하루도 수고했어요, 잠시 쉬어요' },
+  excited:   { title:'특별한 날을 더 특별하게 🎉',              sub:'설레는 오늘, 플레이리스트도 최고로!' },
+  nostalgic: { title:'추억의 그 노래들 🌅',                     sub:'그때 그 시절로 돌아가 볼까요?' },
+  focused:   { title:'집중력을 높여줄 스터디 뮤직 🎯',          sub:'방해 없이 몰입할 수 있는 사운드' },
+  chill:     { title:'아무것도 안 해도 좋은 여유로운 음악 🛋️',  sub:'느긋하게, 그냥 흘려보내세요' },
+};
+
+let selectedMood = null;
+let selectedGenres = new Set();
+
+function init() {
+  const moodGrid = document.getElementById('mood-grid');
+  moodGrid.innerHTML = MOODS.map(m => `
+    <button class="mood-btn" data-id="${m.id}" onclick="selectMood('${m.id}')">
+      <span class="emoji">${m.emoji}</span>
+      <div class="mood-name">${m.name}</div>
+      <div class="mood-desc">${m.desc}</div>
+    </button>
+  `).join('');
+
+  const genreGrid = document.getElementById('genre-grid');
+  genreGrid.innerHTML = GENRES.map(g => `
+    <button class="genre-btn" data-genre="${g}" onclick="toggleGenre('${g}')">${GENRE_EMOJI[g]||'🎵'} ${g}</button>
+  `).join('');
+}
+
+function selectMood(id) {
+  selectedMood = id;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.mood-btn[data-id="'+id+'"]').classList.add('selected');
+  document.getElementById('btn-mood-next').disabled = false;
+}
+
+function toggleGenre(g) {
+  const btn = document.querySelector('.genre-btn[data-genre="'+g+'"]');
+  if (selectedGenres.has(g)) { selectedGenres.delete(g); btn.classList.remove('selected'); }
+  else { selectedGenres.add(g); btn.classList.add('selected'); }
+}
+
+function updateProgress(step) {
+  [1,2,3].forEach(i => {
+    const dot = document.getElementById('dot'+i);
+    dot.className = 'prog-dot ' + (i < step ? 'done' : i === step ? 'active' : 'todo');
+    dot.innerHTML = i < step ? '✓' : i;
+  });
+  [1,2].forEach(i => {
+    document.getElementById('line'+i).className = 'prog-line' + (i < step ? ' done' : '');
+  });
+}
+
+function goToStep1() {
+  document.getElementById('step1').classList.remove('hidden');
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('result-section').style.display = 'none';
+  updateProgress(1);
+  scrollTo({ top:0, behavior:'smooth' });
+}
+
+function goToStep2() {
+  if (!selectedMood) return;
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.remove('hidden');
+  document.getElementById('result-section').style.display = 'none';
+  updateProgress(2);
+  scrollTo({ top:0, behavior:'smooth' });
+}
+
+function goToStep3() {
+  buildRec();
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('result-section').style.display = 'block';
+  updateProgress(3);
+  scrollTo({ top:0, behavior:'smooth' });
+}
+
+function shuffleAgain() { buildRec(); scrollTo({ top:0, behavior:'smooth' }); }
+
+function restart() {
+  selectedMood = null;
+  selectedGenres = new Set();
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('btn-mood-next').disabled = true;
+  goToStep1();
+}
+
+function buildRec() {
+  const mood = MOODS.find(m => m.id === selectedMood);
+  const msg  = MOOD_MESSAGES[selectedMood];
+  let pool = SONGS[selectedMood] || [];
+  if (selectedGenres.size > 0) {
+    const f = pool.filter(s => selectedGenres.has(s.genre));
+    if (f.length >= 3) pool = f;
+  }
+  const picks = [...pool].sort(() => Math.random() - 0.5).slice(0, 6);
+
+  document.getElementById('result-badge').innerHTML = mood.emoji + ' ' + mood.name;
+  document.getElementById('result-title').textContent = msg.title;
+  document.getElementById('result-sub').textContent = msg.sub;
+
+  document.getElementById('song-list').innerHTML = picks.map((s, i) => {
+    const gc = GENRE_COLORS[s.genre] || ['rgba(255,255,255,0.1)','#94a3b8'];
+    const ytUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(s.q || s.title + ' ' + s.artist);
+    return `
+      <div class="song-card" style="animation-delay:${i*0.07}s">
+        <div class="song-num">${i+1}</div>
+        <div class="song-cover" style="background:${gc[0]}">${s.emoji}</div>
+        <div class="song-info">
+          <div class="song-title">${s.title}</div>
+          <div class="song-artist">${s.artist}</div>
+        </div>
+        <div class="song-genre-tag" style="background:${gc[0]};color:${gc[1]}">${s.genre}</div>
+        <a class="youtube-btn" href="${ytUrl}" target="_blank" rel="noopener">▶ YouTube</a>
+      </div>
+    `;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
